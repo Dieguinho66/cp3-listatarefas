@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState } from 'react';
-interface Tarefa {
-  id: number;
-  titulo: string;
-}
-interface ContextoEstadoGlobal {
-  tarefas: Tarefa[];
-  adicionarTarefa: (titulo: string) => void;
-  editarTarefa: (id: number, novoTitulo: string) => void;
-  excluirTarefa: (id: number) => void;
-}
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-community/async-storage';
 
+interface Tarefa {
+    id: number;
+    titulo: string;
+  }
+    
+  interface ContextoEstadoGlobal {
+    tarefas: Tarefa[];
+    adicionarTarefa: (titulo: string) => void;
+    editarTarefa: (id: number, novoTitulo: string) => void;
+    excluirTarefa: (id: number) => void;
+  }
 const ContextoEstadoGlobal = createContext<ContextoEstadoGlobal>({
   tarefas: [],
   adicionarTarefa: () => {},
@@ -18,26 +20,58 @@ const ContextoEstadoGlobal = createContext<ContextoEstadoGlobal>({
 });
 
 export const useEstadoGlobal = () => useContext(ContextoEstadoGlobal);
-
 export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [isRecarregandoTela, setIsRecarregandoTela] = useState(true);
   const adicionarTarefa = (titulo: string) => {
     const novaTarefa: Tarefa = {
-      id: Date.now(),
-      titulo,
-    };
+        id: Date.now(),
+        titulo,
+      };
+
     setTarefas([...tarefas, novaTarefa]);
+    salvarTarefas(tarefas);
   };
   const editarTarefa = (id: number, novoTitulo: string) => {
     const novasTarefas = tarefas.map(tarefa =>
       tarefa.id === id ? { ...tarefa, titulo: novoTitulo } : tarefa
     );
     setTarefas(novasTarefas);
+    salvarTarefas(novasTarefas);
   };
-
+ 
   const excluirTarefa = (id: number) => {
     const novasTarefas = tarefas.filter(tarefa => tarefa.id !== id);
     setTarefas(novasTarefas);
+    salvarTarefas(novasTarefas);
+  };
+  useEffect(() => {
+    const carregarTarefas = async () => {
+      try {
+        const tarefasArmazenadas = await AsyncStorage.getItem('tarefas');
+        if (tarefasArmazenadas) {
+          setTarefas(JSON.parse(tarefasArmazenadas));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      setIsRecarregandoTela(false);
+    };
+    carregarTarefas();
+  }, []);
+
+  useEffect(() => {
+    salvarTarefas(tarefas);
+  }, [tarefas]);
+
+  const salvarTarefas = async (tarefas: Tarefa[]) => {
+    if (!isRecarregandoTela) {
+      try {
+        await AsyncStorage.setItem('tarefas', JSON.stringify(tarefas));
+      } catch (error) {
+        console.error(error);
+      }
+    }
   };
 
   return (
@@ -45,6 +79,4 @@ export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ 
       {children}
     </ContextoEstadoGlobal.Provider>
   );
-
-    
 };

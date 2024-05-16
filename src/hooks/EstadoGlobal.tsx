@@ -1,78 +1,111 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-community/async-storage';
 
 interface Tarefa {
-    id: number;
-    titulo: string;
-  }
-    
-  interface ContextoEstadoGlobal {
-    tarefas: Tarefa[];
-    adicionarTarefa: (titulo: string) => void;
-    editarTarefa: (id: number, novoTitulo: string) => void;
-    excluirTarefa: (id: number) => void;
-  }
+  id: number;
+  titulo: string;
+}
+interface ContextoEstadoGlobal {
+  tarefas: Tarefa[];
+  adicionarTarefa: (titulo: string) => void;
+  editarTarefa: (id: number, novoTitulo: string) => void;
+  excluirTarefa: (id: number) => void;
+}
 const ContextoEstadoGlobal = createContext<ContextoEstadoGlobal>({
   tarefas: [],
   adicionarTarefa: () => {},
   editarTarefa: () => {},
   excluirTarefa: () => {},
 });
-
 export const useEstadoGlobal = () => useContext(ContextoEstadoGlobal);
 export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
-  const [isRecarregandoTela, setIsRecarregandoTela] = useState(true);
-  const adicionarTarefa = (titulo: string) => {
-    const novaTarefa: Tarefa = {
-        id: Date.now(),
-        titulo,
-      };
-
-    setTarefas([...tarefas, novaTarefa]);
-    salvarTarefas(tarefas);
-  };
-  const editarTarefa = (id: number, novoTitulo: string) => {
-    const novasTarefas = tarefas.map(tarefa =>
-      tarefa.id === id ? { ...tarefa, titulo: novoTitulo } : tarefa
-    );
-    setTarefas(novasTarefas);
-    salvarTarefas(novasTarefas);
-  };
- 
-  const excluirTarefa = (id: number) => {
-    const novasTarefas = tarefas.filter(tarefa => tarefa.id !== id);
-    setTarefas(novasTarefas);
-    salvarTarefas(novasTarefas);
-  };
-  useEffect(() => {
-    const carregarTarefas = async () => {
-      try {
-        const tarefasArmazenadas = await AsyncStorage.getItem('tarefas');
-        if (tarefasArmazenadas) {
-          setTarefas(JSON.parse(tarefasArmazenadas));
-        }
-      } catch (error) {
-        console.error(error);
+  const carregarTarefas = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/tarefas');
+      if (!response.ok) {
+        throw new Error('Não foi possível carregar as tarefas');
       }
-      setIsRecarregandoTela(false);
-    };
-    carregarTarefas();
-  }, []);
 
-  useEffect(() => {
-    salvarTarefas(tarefas);
-  }, [tarefas]);
-
-  const salvarTarefas = async (tarefas: Tarefa[]) => {
-    if (!isRecarregandoTela) {
-      try {
-        await AsyncStorage.setItem('tarefas', JSON.stringify(tarefas));
-      } catch (error) {
-        console.error(error);
-      }
+      const data = await response.json();
+      setTarefas(data);
+    } catch (error) {
+      console.error('Erro ao carregar as tarefas:', error);
     }
   };
+
+  const adicionarTarefa = async (titulo: string) => {
+    try {
+      const response = await fetch('http://localhost:3000/tarefas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tarefa: titulo }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Não foi possível adicionar a tarefa');
+      }
+
+      const data = await response.json();
+      console.log('Nova tarefa adicionada:', data);
+
+      setTarefas([...tarefas, data]);
+
+    } catch (error) {
+      console.error('Erro ao adicionar a tarefa:', error);
+    }
+  };
+
+  const editarTarefa = async (id: number, novoTitulo: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/tarefas/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tarefa: novoTitulo }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Não foi possível editar a tarefa');
+      }
+
+      console.log('Tarefa editada com sucesso');
+
+      const novasTarefas = tarefas.map(tarefa =>
+        tarefa.id === id ? { ...tarefa, titulo: novoTitulo } : tarefa
+      );
+      setTarefas(novasTarefas);
+
+    } catch (error) {
+      console.error('Erro ao editar a tarefa:', error);
+    }
+  };
+
+  const excluirTarefa = async (id: number) => {
+    try {
+      const response = await fetch(`http://localhost:3000/tarefas/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Não foi possível excluir a tarefa');
+      }
+
+      console.log('Tarefa excluída com sucesso');
+
+      const novasTarefas = tarefas.filter(tarefa => tarefa.id !== id);
+      setTarefas(novasTarefas);
+
+    } catch (error) {
+      console.error('Erro ao excluir a tarefa:', error);
+    }
+  };
+
+  useEffect(() => {
+    carregarTarefas();
+  }, []);
 
   return (
     <ContextoEstadoGlobal.Provider value={{ tarefas, adicionarTarefa, editarTarefa, excluirTarefa }}>

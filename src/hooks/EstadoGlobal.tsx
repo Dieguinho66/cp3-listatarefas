@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface Tarefa {
   id: number;
-  titulo: string;
+  tarefa: string;
 }
+
 interface ContextoEstadoGlobal {
   tarefas: Tarefa[];
-  adicionarTarefa: (titulo: string) => void;
+  adicionarTarefa: (tarefa: string) => void;
   editarTarefa: (id: number, novoTitulo: string) => void;
   excluirTarefa: (id: number) => void;
 }
+    
 const ContextoEstadoGlobal = createContext<ContextoEstadoGlobal>({
   tarefas: [],
   adicionarTarefa: () => {},
@@ -25,7 +27,6 @@ export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ 
       if (!response.ok) {
         throw new Error('Não foi possível carregar as tarefas');
       }
-
       const data = await response.json();
       setTarefas(data);
     } catch (error) {
@@ -33,30 +34,27 @@ export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const adicionarTarefa = async (titulo: string) => {
+  const adicionarTarefa = async (tarefa: string) => {
     try {
       const response = await fetch('http://localhost:3000/tarefas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ tarefa: titulo }),
+        body: JSON.stringify({ tarefa: tarefa }),
       });
 
       if (!response.ok) {
+
         throw new Error('Não foi possível adicionar a tarefa');
       }
-
       const data = await response.json();
       console.log('Nova tarefa adicionada:', data);
-
       setTarefas([...tarefas, data]);
-
     } catch (error) {
       console.error('Erro ao adicionar a tarefa:', error);
     }
   };
-
   const editarTarefa = async (id: number, novoTitulo: string) => {
     try {
       const response = await fetch(`http://localhost:3000/tarefas/${id}`, {
@@ -66,47 +64,38 @@ export const ProvedorEstadoGlobal: React.FC<{ children: React.ReactNode }> = ({ 
         },
         body: JSON.stringify({ tarefa: novoTitulo }),
       });
-
       if (!response.ok) {
         throw new Error('Não foi possível editar a tarefa');
       }
-
       console.log('Tarefa editada com sucesso');
 
       const novasTarefas = tarefas.map(tarefa =>
-        tarefa.id === id ? { ...tarefa, titulo: novoTitulo } : tarefa
+        tarefa.id === id ? { ...tarefa, tarefa: novoTitulo } : tarefa
       );
       setTarefas(novasTarefas);
 
-    } catch (error) {
-      console.error('Erro ao editar a tarefa:', error);
-    }
-  };
-
+} catch (error) {
+  console.error('Erro ao editar a tarefa:', error);
+}
+};
   const excluirTarefa = async (id: number) => {
     try {
       const response = await fetch(`http://localhost:3000/tarefas/${id}`, {
         method: 'DELETE',
       });
-
       if (!response.ok) {
         throw new Error('Não foi possível excluir a tarefa');
       }
-
       console.log('Tarefa excluída com sucesso');
-
       const novasTarefas = tarefas.filter(tarefa => tarefa.id !== id);
       setTarefas(novasTarefas);
-
     } catch (error) {
       console.error('Erro ao excluir a tarefa:', error);
     }
   };
-
   useEffect(() => {
     carregarTarefas();
   }, []);
-
   return (
     <ContextoEstadoGlobal.Provider value={{ tarefas, adicionarTarefa, editarTarefa, excluirTarefa }}>
       {children}
